@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能排班日历系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .config-panel {
+            flex: 1;
+            min-width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .calendar-container {
+            flex: 2;
+            min-width: 600px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            background-color: #2c3e50;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            position: relative;
+        }
+
+        .month-year {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+
+        #calendar {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #calendar th,
+        #calendar td {
+            padding: 12px;
+            text-align: center;
+        }
+
+        #calendar th {
+            background-color: #ecf0f1;
+            font-weight: 500;
+            color: #333;
+        }
+
+        #calendar td {
+            border: 1px solid #e0e0e0;
+            vertical-align: top;
+            height: 80px;
+            position: relative;
+        }
+
+        .date {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .shift {
+            font-size: 0.9rem;
+            color: black;
+        }
+
+        .today {
+            background-color: #f1c40f;
+            font-weight: bold;
+        }
+
+        .shift-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            color: #fff;
+        }
+
+        .shift-badge-white {
+            background-color: #7DC154;
+        }
+
+        .shift-badge-middle {
+            background-color: #2ecc71;
+        }
+
+        .shift-badge-rest {
+            background-color: #28AEB1;
+        }
+
+        .shift-badge-night {
+            background-color: #6B7CFE;
+        }
+
+        .other-month {
+            color: #aaa;
+        }
+
+        .weekend {
+            color: #e74c3c;
+        }
+
+        .holiday {
+            color: #f1c40f;
+        }
+
+        .holiday-name {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            width: 10px;
+            font-size: 0.7rem;
+            color: #f1c40f;
+            margin-top: 2px;
+        }
+
+        .loading {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 0.8rem;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 5px;
+            color: white;
+        }
+
+        .tag .delete {
+            margin-left: 5px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .config-buttons {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .config-section {
+            margin-bottom: 20px;
+        }
+
+        .config-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .start-date-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .rule-display {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="config-panel">
+            <h2>排班规则配置</h2>
+
+            <div class="config-section">
+                <div class="config-title">排班起始日期</div>
+                <input type="date" id="start-date" class="start-date-input" value="2025-03-26">
+            </div>
+
+            <div class="config-section">
+                <div class="config-title">添加班次类型</div>
+                <div class="config-buttons">
+                    <button class="btn" onclick="addShift('白班')">白班</button>
+                    <button class="btn" onclick="addShift('中班')">中班</button>
+                    <button class="btn" onclick="addShift('夜班')">夜班</button>
+                    <button class="btn" onclick="addShift('休息')">休息</button>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <button class="btn" onclick="applySchedule()">应用排班规则</button>
+                <button class="btn" onclick="resetSchedule()">重置规则</button>
+            </div>
+
+            <div class="config-section">
+                <div class="config-title">当前排班规则</div>
+                <div id="rule-display" class="rule-display">未设置规则</div>
+                <div id="tags"></div>
+            </div>
+        </div>
+
+        <div class="calendar-container">
+            <div class="header">
+                <h1 class="month-year" id="month-year"></h1>
+                <div class="controls">
+                    <button class="btn" onclick="prevMonth()">&lt; 上一月</button>
+                    <button class="btn" onclick="nextMonth()">下一月 &gt;</button>
+                </div>
+                <div id="loading" class="loading" style="display: none;">加载中...</div>
+            </div>
+            <div id="error-message" class="error-message"></div>
+            <table id="calendar">
+                <thead>
+                    <tr>
+                        <th>日</th>
+                        <th>一</th>
+                        <th>二</th>
+                        <th>三</th>
+                        <th>四</th>
+                        <th>五</th>
+                        <th>六</th>
+                    </tr>
+                </thead>
+                <tbody id="calendar-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/lunar-calendar@1.3.1/dist/lunar-calendar.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/lunar-calendar@1.3.1/dist/lunar-calendar.min.js"
+        integrity="sha384-k8VjNtD5nz9Ew4U4N8QxTHlZQ/MpZPtu3B1GpDlKZ4Y9cq3R6Z2X7fzX7h4f3z4z"
+        crossorigin="anonymous"></script>
+    <script src="https://jjonline.github.io/calendar.js/dist/js-calendar-converter.js"></script>
+    <script>
+        // 全局变量
+        let currentDate = new Date();
+        let START_DATE = new Date(2025, 2, 26); // 默认起始日期 2025-03-26
+        let SHIFT_RULE = [
+            { type: '白班', className: 'white' },
+            { type: '白班', className: 'white' },
+            { type: '中班', className: 'middle' },
+            { type: '中班', className: 'middle' },
+            { type: '休息', className: 'rest' },
+            { type: '休息', className: 'rest' },
+            { type: '夜班', className: 'night' },
+            { type: '夜班', className: 'night' }
+        ];
+
+        const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+        const MONTH_NAMES = ['一月', '二月', '三月', '四月', '五月', '六月',
+            '七月', '八月', '九月', '十月', '十一月', '十二月'
+        ];
+
+        // 节假日数据缓存
+        let HOLIDAYS_CACHE = {};
+
+        // 初始化渲染
+        initCalendar();
+
+        async function initCalendar() {
+            await fetchHolidays(currentDate.getFullYear());
+            renderCalendar();
+            updateRuleDisplay();
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            const calendarBody = document.getElementById('calendar-body');
+            const fragment = document.createDocumentFragment();
+
+            document.getElementById('month-year').textContent =
+                `${MONTH_NAMES[month]} ${year}`;
+
+            let row = document.createElement('tr');
+
+            // 填充上个月空白
+            for (let i = 0; i < firstDay; i++) {
+                const date = new Date(year, month - 1, daysInPrevMonth - firstDay + 1 + i);
+                const cell = createDateCell(date, year, month);
+                row.appendChild(cell);
+            }
+
+            // 填充本月日期
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const cell = createDateCell(date, year, month);
+                row.appendChild(cell);
+
+                if ((day + firstDay) % 7 === 0) {
+                    fragment.appendChild(row);
+                    row = document.createElement('tr');
+                }
+            }
+
+            // 填充下个月空白
+            let nextMonthDay = 1;
+            while (row.children.length < 7) {
+                const date = new Date(year, month + 1, nextMonthDay);
+                const cell = createDateCell(date, year, month);
+                row.appendChild(cell);
+                nextMonthDay++;
+            }
+            fragment.appendChild(row);
+
+            calendarBody.innerHTML = '';
+            calendarBody.appendChild(fragment);
+        }
+
+        function createDateCell(date, currentYear, currentMonth) {
+            const cell = document.createElement('td');
+            const dateElement = document.createElement('div');
+            dateElement.className = 'date';
+            dateElement.textContent = date.getDate();
+
+            // 处理不同月份样式
+            if (date.getFullYear() !== currentYear || date.getMonth() !== currentMonth) {
+                dateElement.classList.add('other-month');
+            }
+
+            // 高亮当前日期
+            if (isToday(date)) {
+                dateElement.classList.add('today');
+            }
+
+            // 周末高亮
+            if (isWeekend(date)) {
+                dateElement.classList.add('weekend');
+            }
+
+            // 法定节假日高亮
+            const holidayInfo = isHoliday(date);
+            if (holidayInfo) {
+                dateElement.classList.add('holiday');
+                const holidayElement = document.createElement('div');
+                holidayElement.className = 'holiday-name';
+                holidayElement.textContent = holidayInfo;
+                cell.appendChild(holidayElement);
+            }
+
+            // 渲染排班信息
+            const shiftInfo = getShiftInfo(date);
+            const shiftElement = document.createElement('div');
+            shiftElement.className = `shift shift-badge shift-badge-${shiftInfo.className}`;
+            shiftElement.textContent = shiftInfo.type;
+            cell.appendChild(dateElement);
+            cell.appendChild(shiftElement);
+
+            return cell;
+        }
+
+        function getShiftInfo(date) {
+            const diffDays = Math.floor((date - START_DATE) / (1000 * 60 * 60 * 24));
+            let index = diffDays % SHIFT_RULE.length;
+            if (index < 0) {
+                index = (index + SHIFT_RULE.length) % SHIFT_RULE.length;
+            }
+            return SHIFT_RULE[index];
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.toDateString() === today.toDateString();
+        }
+
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        }
+
+        function isHoliday(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+
+            if (HOLIDAYS_CACHE[dateString]) {
+                return HOLIDAYS_CACHE[dateString];
+            }
+
+            return null;
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+        }
+
+        function clearError() {
+            document.getElementById('error-message').textContent = '';
+        }
+
+        async function fetchHolidays(year) {
+            showLoading();
+            clearError();
+
+            try {
+                const cacheKey = `holidays_${year}`;
+                const cachedData = localStorage.getItem(cacheKey);
+
+                if (cachedData) {
+                    HOLIDAYS_CACHE = JSON.parse(cachedData);
+                    hideLoading();
+                    return;
+                }
+
+                const response = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/CN`);
+
+                if (!response.ok) {
+                    throw new Error('API请求失败');
+                }
+
+                const holidays = await response.json();
+                const holidaysMap = {};
+                holidays.forEach(holiday => {
+                    const date = new Date(holiday.date);
+                    const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    holidaysMap[dateString] = holiday.localName;
+                });
+
+                HOLIDAYS_CACHE = holidaysMap;
+                localStorage.setItem(cacheKey, JSON.stringify(holidaysMap));
+                localStorage.setItem(`${cacheKey}_timestamp`, Date.now());
+
+                hideLoading();
+            } catch (error) {
+                console.error("获取节假日数据失败:", error);
+                showError("节假日数据加载失败");
+                hideLoading();
+            }
+        }
+
+        async function prevMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            const currentYear = currentDate.getFullYear();
+            const holidaysCacheKey = `holidays_${currentYear}`;
+
+            if (!localStorage.getItem(holidaysCacheKey)) {
+                await fetchHolidays(currentYear);
+            }
+
+            renderCalendar();
+        }
+
+        async function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            const currentYear = currentDate.getFullYear();
+            const holidaysCacheKey = `holidays_${currentYear}`;
+
+            if (!localStorage.getItem(holidaysCacheKey)) {
+                await fetchHolidays(currentYear);
+            }
+
+            renderCalendar();
+        }
+
+        // 排班规则配置功能
+        function addShift(shiftType) {
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.textContent = shiftType;
+
+            const deleteButton = document.createElement('span');
+            deleteButton.className = 'delete';
+            deleteButton.textContent = '×';
+            deleteButton.addEventListener('click', () => {
+                tag.remove();
+            });
+
+            let className;
+            switch (shiftType) {
+                case '白班':
+                    className = 'shift-badge-white';
+                    break;
+                case '中班':
+                    className = 'shift-badge-middle';
+                    break;
+                case '夜班':
+                    className = 'shift-badge-night';
+                    break;
+                case '休息':
+                    className = 'shift-badge-rest';
+                    break;
+            }
+            tag.classList.add(className);
+
+            tag.appendChild(deleteButton);
+            document.getElementById('tags').appendChild(tag);
+        }
+
+        function applySchedule() {
+            const startDateInput = document.getElementById('start-date').value;
+            const [year, month, day] = startDateInput.split('-');
+            START_DATE = new Date(year, month - 1, day);
+
+            const tags = document.querySelectorAll('#tags .tag');
+            const newRule = [];
+
+            tags.forEach(tag => {
+                const type = tag.textContent.replace('×', '').trim();
+                let className;
+                switch (type) {
+                    case '白班':
+                        className = 'white';
+                        break;
+                    case '中班':
+                        className = 'middle';
+                        break;
+                    case '夜班':
+                        className = 'night';
+                        break;
+                    case '休息':
+                        className = 'rest';
+                        break;
+                }
+                newRule.push({ type, className });
+            });
+
+            if (newRule.length > 0) {
+                SHIFT_RULE = newRule;
+                renderCalendar();
+                updateRuleDisplay('排班规则已应用！');
+            } else {
+                updateRuleDisplay('请先添加排班规则！');
+            }
+        }
+
+        function resetSchedule() {
+            document.getElementById('tags').innerHTML = '';
+            SHIFT_RULE = [];
+            updateRuleDisplay('');
+        }
+
+        function updateRuleDisplay(val) {
+            const ruleDisplay = document.getElementById('rule-display');
+            ruleDisplay.textContent = val;
+        }
+
+        window.addEventListener('resize', () => {
+            renderCalendar();
+        });
+    </script>
+</body>
+
+</html>
